@@ -1,0 +1,15 @@
+.gh-token
+
+# Local deployment config + secrets — keep the *.example files tracked
+config.yaml
+.env
+.claude/
+CLAUDE.md
+
+# Runtime state / caches
+data/
+*.ics
+
+# Python
+__pycache__/
+*.py[cod]

@@ -1,0 +1,67 @@
+# Herald — Logseq → ntfy notifier config (Phase 1)
+# Copy to config.yaml and mount it into the Herald container.
+# Secrets are NOT here — they come from environment variables:
+#   NTFY_TOKEN          publisher token (write access to logseq-* topics)
+#   VACATION_ICAL_URL   Google Calendar "secret address in iCal format"
+
+# ---- Global settings ----
+global:
+  ntfy_url: http://ntfy:80                 # internal ntfy URL over ntfy-net (not the public one)
+  admin_topic: logseq-admin               # diagnostics: feed-stale, crashes, startup ping
+  poll_seconds: 60                        # loop interval, aligned to top of minute
+  timezone: Europe/Prague                 # tz-database name; DST handled automatically
+  state_file: /data/state.json            # watermark + deferred queue (atomic write)
+  ics_cache_file: /data/vacation.ics      # cached vacation calendar
+
+  # Defaults inherited by every folder unless overridden per-folder.
+  defaults:
+    keywords: [TODO, DOING, NOW, LATER]   # actionable markers; DONE/CANCELED never fire
+    trigger_on: [SCHEDULED, DEADLINE]
+    default_time: "09:00"                 # fire time for date-only timestamps
+
+# ---- Gate profiles ----
+# Referenced by folders via `gate_profile`.
+gate_profiles:
+  none: {}                                # fire at exact time, 24/7 (personal)
+
+  workhours:                              # gate work reminders to working time
+    days: [Mon, Tue, Wed, Thu, Fri]
+    window_start: "09:00"
+    window_end: "16:00"                   # exclusive: a 16:00 task defers
+    digest_time: "09:30"                  # deferred backlog delivered here at window open day
+    holidays_country: CZ                  # ISO country code for the `holidays` lib -> non-working
+                                          #   (null/omit to disable public-holiday gating)
+    holidays_subdiv: null                 # optional region/state, e.g. "BY" for Bavaria; null = country-wide
+    vacation_calendar: true               # honor VACATION_ICAL_URL all-day events
+    on_feed_failure: fail-open            # no cache + fetch fail -> treat as working day
+
+# ---- Folders (one entry per Logseq graph — add as many as you want) ----
+# `path` = /graphs/<subfolder> under GRAPHS_ROOT (the mount in docker-compose.yml).
+# `graph` = your real Logseq graph name, used in the logseq:// deep link (usually the
+#           same as the subfolder name). Name each `topic` logseq-* so the existing
+#           ntfy ACL/token already covers it — no new ntfy permissions per graph.
+folders:
+  - name: personal
+    path: /graphs/MyPersonalGraph         # subfolder under GRAPHS_ROOT
+    graph: MyPersonalGraph                # <graph-name> in the logseq:// deep link
+    topic: logseq-personal
+    gate_profile: none
+    agenda_page: Agenda                   # digest tap target (downtime catch-up digests)
+
+  - name: work
+    path: /graphs/MyWorkGraph
+    graph: MyWorkGraph
+    topic: logseq-work
+    gate_profile: workhours
+    agenda_page: Agenda                   # digest tap target (deferred + downtime digests)
+    # Example per-folder override (uncomment to make work DEADLINE-only):
+    # trigger_on: [DEADLINE]
+
+  # Add more graphs freely — just a new block here + a matching subfolder under
+  # GRAPHS_ROOT. No compose change needed.
+  # - name: sideproject
+  #   path: /graphs/SideProject
+  #   graph: SideProject
+  #   topic: logseq-sideproject
+  #   gate_profile: none
+  #   agenda_page: Agenda

@@ -1,0 +1,18 @@
+# Build context is the repo root; ship only what the image needs (Dockerfile + app/).
+.git
+.github
+.claude
+ntfy
+docs
+*.md
+.gitignore
+.dockerignore
+.gh-token
+.env
+.env.example
+config.yaml
+config.example.yaml
+data
+**/__pycache__
+**/*.pyc
+**/*.pyo

@@ -1,0 +1,54 @@
+# ILLUSTRATIVE EXAMPLE — not the source of truth.
+# ntfy is reusable infra; deploy the real server from your homelab/infra collection.
+# The binding contract the notifier depends on lives in ../docs/ntfy-prerequisites.md.
+# For current image/config, follow upstream: https://docs.ntfy.sh/install/
+#
+# Standalone, reusable ntfy push server.
+# Deploy independently of the notifier:  docker compose up -d
+#
+# One-time, before first `up`:
+#   docker network create ntfy-net
+#
+# The notifier stack joins `ntfy-net` (external) and publishes to http://ntfy:80.
+# The phone subscribes over the public URL via the Cloudflare tunnel.
+services:
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    container_name: ntfy
+    command:
+      - serve
+    restart: unless-stopped
+    init: true   # with a healthcheck, reaps zombie processes (per upstream example)
+    # Run as a specific (non-root) user. Set this to the uid:gid that owns the
+    # TrueNAS dataset below (check the dataset's permissions in the TrueNAS UI, or
+    # `ls -n` the mountpoint). The mounted subfolders must be writable by this user.
+    user: "1000:1000"
+    environment:
+      - TZ=Europe/Prague
+    # Directory mounts (upstream style). Replace POOL/DATASET with your dataset.
+    # One dataset with three subfolders is fine; create them and chown to the user.
+    volumes:
+      - /mnt/POOL/DATASET/etc:/etc/ntfy               # config dir — put server.yml HERE
+      - /mnt/POOL/DATASET/cache:/var/cache/ntfy       # message cache + attachment cache
+      - /mnt/POOL/DATASET/lib:/var/lib/ntfy           # auth database (users, tokens, ACL)
+    networks:
+      - ntfy-net
+    # Required because cloudflared runs on the host (not on ntfy-net) and reaches
+    # ntfy via this published port. If your cloudflared instead runs as a container
+    # ON ntfy-net, it can use http://ntfy:80 directly and this block isn't needed.
+    # Tightening: if the tunnel runs directly on this host, bind to loopback only
+    # ("127.0.0.1:8234:80") so ntfy isn't exposed to the whole LAN. Use "8234:80"
+    # (all interfaces) if you also want direct LAN access from other machines.
+    ports:
+      - "8234:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  ntfy-net:
+    external: true
+    name: ntfy-net

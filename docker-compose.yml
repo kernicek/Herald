@@ -1,0 +1,34 @@
+# Herald — Logseq → ntfy notifier daemon.
+# Depends on the ntfy stack's external network `ntfy-net` (create it first:
+#   docker network create ntfy-net) and on a running ntfy reachable at http://ntfy:80.
+services:
+  herald:
+    # Prebuilt image from GHCR (built by .github/workflows/publish.yml on tag).
+    # Pin a version (…:0.1.0) for stability, or :latest to always take the newest.
+    # For local dev instead: comment `image:` and use `build: .`.
+    image: ghcr.io/kernicek/herald:latest
+    container_name: herald
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Prague
+      # Secrets — do NOT put these in config.yaml.
+      NTFY_TOKEN: ${NTFY_TOKEN:?set NTFY_TOKEN (ntfy publisher token) in .env}
+      VACATION_ICAL_URL: ${VACATION_ICAL_URL:-}   # Google Calendar "secret iCal" URL
+    volumes:
+      # Config (real config.yaml copied from config.example.yaml). Override the
+      # host path with CONFIG_PATH in .env if you don't run from the repo checkout.
+      - ${CONFIG_PATH:-./config.yaml}:/app/config.yaml:ro
+      # Parent dir holding ALL your Logseq graphs, mounted READ ONLY at /graphs.
+      # Each folder in config.yaml points at /graphs/<graph-subfolder>. Add as many
+      # graphs as you like with zero compose changes — just add folder blocks in
+      # config.yaml (and a matching subfolder under GRAPHS_ROOT).
+      - ${GRAPHS_ROOT:?set GRAPHS_ROOT in .env}:/graphs:ro
+      # Writable state + iCal cache.
+      - ${DATA_PATH:-./data}:/data
+    networks:
+      - ntfy-net
+
+networks:
+  ntfy-net:
+    external: true
+    name: ntfy-net

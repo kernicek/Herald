@@ -1,0 +1,23 @@
+# ILLUSTRATIVE ntfy server config — adapt, don't trust blindly.
+# Authoritative reference: https://docs.ntfy.sh/config/
+# The notifier's integration contract: ../docs/ntfy-prerequisites.md
+
+# Public base URL (as the phone reaches it via the Cloudflare tunnel).
+base-url: "https://ntfy.example.com"
+
+# Listen on plain HTTP inside the container; TLS is terminated by the tunnel.
+listen-http: ":80"
+
+# Persist the auth database (users, tokens, ACL) and message cache.
+auth-file: "/var/lib/ntfy/user.db"
+cache-file: "/var/cache/ntfy/cache.db"
+
+# Least privilege: nobody can read/write unless explicitly granted (see prereqs doc).
+auth-default-access: "deny-all"
+
+# Keep messages briefly so a phone that was offline still receives them on reconnect.
+cache-duration: "12h"
+
+# Optional niceties:
+# attachment-cache-dir: "/var/cache/ntfy/attachments"
+# behind-proxy: true            # set true if fronted by a reverse proxy that sets X-Forwarded-*

@@ -1,0 +1,6 @@
+PyYAML>=6.0
+holidays>=0.50
+python-dateutil>=2.9
+requests>=2.31
+icalendar>=5.0
+recurring-ical-events>=2.1
