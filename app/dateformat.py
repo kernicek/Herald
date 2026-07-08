@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import date
+from datetime import date, datetime
 
 DEFAULT_FORMAT = "MMM do, yyyy"   # Logseq's default :journal/page-title-format
 
@@ -49,6 +49,24 @@ _TOKEN_RE = re.compile(r"yyyy|yy|MMMM|MMM|MM|M|EEEE|EEE|EE|E|do|dd|d")
 def _ordinal(n: int) -> str:
     suffix = "th" if 11 <= n % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
     return f"{n}{suffix}"
+
+
+def humanize(when: datetime, now: datetime, exact_fmt: str) -> str:
+    """Human label for a past ``when`` delivered at ``now`` (both tz-aware, same tz).
+
+    Only the calendar-day gap matters, not elapsed hours:
+    ``Today 17:40`` -> ``Yesterday 17:40`` -> ``Sat 09:00`` (2-6 days) ->
+    the exact Logseq-formatted date + time (>= 7 days).
+    """
+    hm = when.strftime("%H:%M")
+    days = (now.date() - when.date()).days
+    if days <= 0:
+        return f"Today {hm}"
+    if days == 1:
+        return f"Yesterday {hm}"
+    if days < 7:
+        return f"{_WEEKDAYS_ABBR[when.weekday()]} {hm}"
+    return f"{format_date(when.date(), exact_fmt)} {hm}"
 
 
 def format_date(d: date, fmt: str) -> str:

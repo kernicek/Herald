@@ -62,7 +62,7 @@ class Engine:
         log.debug("scan window (%s, %s] catchup=%s -> live=%d batch=%d deferred_q=%d",
                   win_start.isoformat(), win_end.isoformat(), is_catchup,
                   live_n, batch_n, len(st.deferred))
-        self._send(live_by_folder, batch_by_folder, folder_by_name)
+        self._send(live_by_folder, batch_by_folder, folder_by_name, now)
 
         # 4) Advance watermark and persist (deferred queue may have changed).
         st.last_scan = now
@@ -108,16 +108,17 @@ class Engine:
         )
 
     # --- sending ---
-    def _send(self, live, batch, folder_by_name) -> None:
+    def _send(self, live, batch, folder_by_name, now) -> None:
         for deliveries in live.values():
             for d in deliveries:
-                ok = self.pub.send_occurrence(d.occurrence)
+                ok = self.pub.send_occurrence(d.occurrence, now, on_time=True)
                 self._log_fire("fired", d.occurrence, ok)
 
         for fname, deliveries in batch.items():
             if len(deliveries) == 1:
                 # A lone item keeps its precise deep link rather than a 1-item digest.
-                ok = self.pub.send_occurrence(deliveries[0].occurrence)
+                # It's a late delivery (deferred flush or downtime catch-up).
+                ok = self.pub.send_occurrence(deliveries[0].occurrence, now, on_time=False)
                 self._log_fire("delivered", deliveries[0].occurrence, ok)
             else:
                 ok = self.pub.send_digest(folder_by_name[fname], deliveries)
