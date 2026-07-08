@@ -74,6 +74,7 @@ def load(config_path: str = "/app/config.yaml") -> Config:
     def_trigger = frozenset(t.upper() for t in defaults.get(
         "trigger_on", ["SCHEDULED", "DEADLINE"]))
     def_time = _parse_time(defaults.get("default_time", "09:00"))
+    def_journal = defaults.get("journal_date_format")  # None => auto-read per graph
 
     profiles = {
         name: _build_profile(name, raw)
@@ -94,6 +95,7 @@ def load(config_path: str = "/app/config.yaml") -> Config:
             default_time=_parse_time(f["default_time"]) if "default_time" in f else def_time,
             keywords=frozenset(k.upper() for k in f["keywords"]) if "keywords" in f else def_keywords,
             trigger_on=frozenset(t.upper() for t in f["trigger_on"]) if "trigger_on" in f else def_trigger,
+            journal_date_format=f.get("journal_date_format", def_journal),
         ))
 
     token = os.environ.get("NTFY_TOKEN", "").strip()

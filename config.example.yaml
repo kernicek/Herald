@@ -18,6 +18,10 @@ global:
     keywords: [TODO, DOING, NOW, LATER]   # actionable markers; DONE/CANCELED never fire
     trigger_on: [SCHEDULED, DEADLINE]
     default_time: "09:00"                 # fire time for date-only timestamps
+    # Journal page-title format for deep links. By default Herald auto-reads
+    # `:journal/page-title-format` from each graph's logseq/config.edn — set this
+    # only to override (e.g. if logseq/ isn't synced to the NAS).
+    # journal_date_format: "yyyy-MM-dd EEE"
 
 # ---- Gate profiles ----
 # Referenced by folders via `gate_profile`.

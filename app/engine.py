@@ -57,6 +57,11 @@ class Engine:
                     self._delivery_from_entry(entry, folder))
 
         # 3) Send.
+        live_n = sum(len(v) for v in live_by_folder.values())
+        batch_n = sum(len(v) for v in batch_by_folder.values())
+        log.debug("scan window (%s, %s] catchup=%s -> live=%d batch=%d deferred_q=%d",
+                  win_start.isoformat(), win_end.isoformat(), is_catchup,
+                  live_n, batch_n, len(st.deferred))
         self._send(live_by_folder, batch_by_folder, folder_by_name)
 
         # 4) Advance watermark and persist (deferred queue may have changed).
@@ -82,6 +87,10 @@ class Engine:
             batch.setdefault(occ.folder.name, []).append(d)  # missed while down
         else:
             self.state.deferred.append(d.to_json())          # queue for later
+            log.info("deferred [%s] %r due %s -> digest %s", occ.folder.topic,
+                     occ.task_text,
+                     occ.when.astimezone(self.cfg.tz).strftime("%Y-%m-%d %H:%M"),
+                     dtime.astimezone(self.cfg.tz).strftime("%Y-%m-%d %H:%M"))
 
     def _delivery_from_entry(self, entry: dict, folder) -> Delivery:
         occ = Occurrence(
@@ -102,14 +111,23 @@ class Engine:
     def _send(self, live, batch, folder_by_name) -> None:
         for deliveries in live.values():
             for d in deliveries:
-                self.pub.send_occurrence(d.occurrence)
+                ok = self.pub.send_occurrence(d.occurrence)
+                self._log_fire("fired", d.occurrence, ok)
 
         for fname, deliveries in batch.items():
             if len(deliveries) == 1:
                 # A lone item keeps its precise deep link rather than a 1-item digest.
-                self.pub.send_occurrence(deliveries[0].occurrence)
+                ok = self.pub.send_occurrence(deliveries[0].occurrence)
+                self._log_fire("delivered", deliveries[0].occurrence, ok)
             else:
-                self.pub.send_digest(folder_by_name[fname], deliveries)
+                ok = self.pub.send_digest(folder_by_name[fname], deliveries)
+                log.info("digest [%s] %d tasks%s", fname, len(deliveries),
+                         "" if ok else " (SEND FAILED)")
+
+    def _log_fire(self, verb: str, occ, ok: bool) -> None:
+        log.info("%s [%s] %r @ %s -> %s%s", verb, occ.folder.topic, occ.task_text,
+                 occ.when.astimezone(self.cfg.tz).strftime("%Y-%m-%d %H:%M"),
+                 occ.deep_link(), "" if ok else " (SEND FAILED)")
 
     # --- diagnostics ---
     def _maybe_alert_feed(self) -> None:

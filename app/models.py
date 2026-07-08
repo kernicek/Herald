@@ -36,6 +36,7 @@ class Folder:
     default_time: time
     keywords: frozenset          # actionable markers, uppercased
     trigger_on: frozenset        # subset of {"SCHEDULED", "DEADLINE"}
+    journal_date_format: Optional[str] = None  # None => auto-read from logseq/config.edn
 
 
 @dataclass

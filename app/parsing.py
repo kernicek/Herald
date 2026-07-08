@@ -15,6 +15,11 @@ from dataclasses import dataclass
 from datetime import date, time
 from typing import Optional
 
+from . import dateformat
+
+# Match the date embedded in a journal filename (e.g. 2026_07_08 or 2026-07-08).
+_JOURNAL_DATE_RE = re.compile(r"(\d{4})\D(\d{1,2})\D(\d{1,2})")
+
 # Markers we recognize at all (so we can positively skip DONE/CANCELED).
 KNOWN_MARKERS = {
     "TODO", "DOING", "NOW", "LATER", "DONE",
@@ -46,13 +51,25 @@ class ParsedStamp:
     block_id: Optional[str]
 
 
-def page_name(folder_path: str, file_path: str) -> str:
-    """Best-effort Logseq page name from a Markdown file path."""
+def page_name(folder_path: str, file_path: str,
+              journal_format: str = dateformat.DEFAULT_FORMAT) -> str:
+    """Best-effort Logseq page name from a Markdown file path.
+
+    Journal pages are titled by the graph's date format (e.g. `yyyy-MM-dd EEE` ->
+    `2026-07-08 Wed`), NOT the ISO filename — the deep link must use that title.
+    """
     rel = os.path.relpath(file_path, folder_path).replace(os.sep, "/")
     stem = rel[:-3] if rel.lower().endswith(".md") else rel
     if stem.startswith("journals/"):
-        # Journal files like journals/2026_07_08.md -> "2026-07-08".
-        return stem.split("/", 1)[1].replace("_", "-")
+        name = stem.split("/", 1)[1]
+        m = _JOURNAL_DATE_RE.search(name)
+        if m:
+            try:
+                d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                return dateformat.format_date(d, journal_format)
+            except ValueError:
+                pass
+        return name.replace("_", "-")  # fallback if the date can't be parsed
     # Normal pages live in pages/; namespaces are encoded with triple underscores.
     if stem.startswith("pages/"):
         stem = stem.split("/", 1)[1]
@@ -122,9 +139,18 @@ def parse_text(text: str, page: str, keywords: frozenset,
     return stamps
 
 
+def resolve_journal_format(folder) -> str:
+    """Journal title format: explicit config override, else the graph's
+    logseq/config.edn, else Logseq's default."""
+    if folder.journal_date_format:
+        return folder.journal_date_format
+    return dateformat.read_journal_format(folder.path) or dateformat.DEFAULT_FORMAT
+
+
 def scan_folder(folder) -> list:
     """Walk a folder's Markdown files and return all ParsedStamp records."""
     stamps = []
+    journal_format = resolve_journal_format(folder)
     for root, _dirs, files in os.walk(folder.path):
         for fn in files:
             if not fn.lower().endswith(".md"):
@@ -135,6 +161,6 @@ def scan_folder(folder) -> list:
                     text = fh.read()
             except OSError:
                 continue
-            page = page_name(folder.path, fp)
+            page = page_name(folder.path, fp, journal_format)
             stamps.extend(parse_text(text, page, folder.keywords, folder.trigger_on))
     return stamps
