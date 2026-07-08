@@ -37,7 +37,8 @@ gate_profiles:
     holidays_country: CZ                  # ISO country code for the `holidays` lib -> non-working
                                           #   (null/omit to disable public-holiday gating)
     holidays_subdiv: null                 # optional region/state, e.g. "BY" for Bavaria; null = country-wide
-    vacation_calendar: true               # honor VACATION_ICAL_URL all-day events
+    vacation_calendar: true               # honor VACATION_ICAL_URL events: all-day = whole day
+                                          #   off; timed = half-day, blocks only that window
     on_feed_failure: fail-open            # no cache + fetch fail -> treat as working day
 
 # ---- Folders (one entry per Logseq graph — add as many as you want) ----

@@ -31,7 +31,7 @@ def main() -> None:
     state = State(cfg.state_file, cfg.tz).load()
     publisher = Publisher(cfg.ntfy_url, cfg.secrets.ntfy_token, cfg.tz)
     vac = VacationCalendar(cfg.secrets.vacation_ical_url, cfg.ics_cache_file,
-                           cfg.feed_refresh_seconds)
+                           cfg.feed_refresh_seconds, cfg.tz)
     engine = Engine(cfg, state, publisher, vac)
 
     folders = ", ".join(f"{f.name}->{f.topic}" for f in cfg.folders)
