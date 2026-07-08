@@ -38,6 +38,8 @@ _TS_RE = re.compile(
 )
 _ID_RE = re.compile(r"id::\s*([0-9a-fA-F-]{36})")
 _CLEAN_TS_RE = re.compile(r"(SCHEDULED|DEADLINE):\s*<[^>]*>", re.IGNORECASE)
+# Logseq page links: [[Link]] -> Link (opt-in; notification titles are plain text).
+_WIKILINK_RE = re.compile(r"\[\[([^\[\]]+)\]\]")
 
 
 @dataclass
@@ -76,14 +78,17 @@ def page_name(folder_path: str, file_path: str,
     return stem.replace("___", "/")
 
 
-def _clean_text(text: str) -> str:
+def _clean_text(text: str, strip_wikilinks: bool = False) -> str:
     text = _CLEAN_TS_RE.sub("", text)
     text = _ID_RE.sub("", text)
+    if strip_wikilinks:
+        text = _WIKILINK_RE.sub(r"\1", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
 def _finalize_block(first_line: str, body_lines: list, page: str,
-                    keywords: frozenset, trigger_on: frozenset) -> list:
+                    keywords: frozenset, trigger_on: frozenset,
+                    strip_wikilinks: bool = False) -> list:
     tokens = first_line.split(maxsplit=1)
     if not tokens:
         return []
@@ -96,7 +101,7 @@ def _finalize_block(first_line: str, body_lines: list, page: str,
 
     id_match = _ID_RE.search(block_text)
     block_id = id_match.group(1) if id_match else None
-    task_text = _clean_text(text_body) or "(task)"
+    task_text = _clean_text(text_body, strip_wikilinks) or "(task)"
 
     stamps = []
     for m in _TS_RE.finditer(block_text):
@@ -116,7 +121,7 @@ def _finalize_block(first_line: str, body_lines: list, page: str,
 
 
 def parse_text(text: str, page: str, keywords: frozenset,
-               trigger_on: frozenset) -> list:
+               trigger_on: frozenset, strip_wikilinks: bool = False) -> list:
     """Parse one file's text into ParsedStamp records."""
     stamps = []
     first_line = None
@@ -125,7 +130,7 @@ def parse_text(text: str, page: str, keywords: frozenset,
     def flush():
         if first_line is not None:
             stamps.extend(_finalize_block(first_line, body_lines, page,
-                                          keywords, trigger_on))
+                                          keywords, trigger_on, strip_wikilinks))
 
     for line in text.splitlines():
         m = _BULLET_RE.match(line)
@@ -147,7 +152,7 @@ def resolve_journal_format(folder) -> str:
     return dateformat.read_journal_format(folder.path) or dateformat.DEFAULT_FORMAT
 
 
-def scan_folder(folder) -> list:
+def scan_folder(folder, strip_wikilinks: bool = False) -> list:
     """Walk a folder's Markdown files and return all ParsedStamp records."""
     stamps = []
     journal_format = resolve_journal_format(folder)
@@ -162,5 +167,6 @@ def scan_folder(folder) -> list:
             except OSError:
                 continue
             page = page_name(folder.path, fp, journal_format)
-            stamps.extend(parse_text(text, page, folder.keywords, folder.trigger_on))
+            stamps.extend(parse_text(text, page, folder.keywords,
+                                     folder.trigger_on, strip_wikilinks))
     return stamps

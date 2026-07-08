@@ -12,6 +12,7 @@ global:
   timezone: Europe/Prague                 # tz-database name; DST handled automatically
   state_file: /data/state.json            # watermark + deferred queue (atomic write)
   ics_cache_file: /data/vacation.ics      # cached vacation calendar
+  strip_wikilinks: false                  # true -> render Logseq [[Link]] as plain "Link" in notifications
 
   # Defaults inherited by every folder unless overridden per-folder.
   defaults:

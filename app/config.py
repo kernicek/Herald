@@ -40,6 +40,7 @@ class Config:
     state_file: str
     ics_cache_file: str
     feed_refresh_seconds: int
+    strip_wikilinks: bool
     folders: tuple
     secrets: Secrets
 
@@ -111,6 +112,7 @@ def load(config_path: str = "/app/config.yaml") -> Config:
         state_file=g.get("state_file", "/data/state.json"),
         ics_cache_file=g.get("ics_cache_file", "/data/vacation.ics"),
         feed_refresh_seconds=int(g.get("feed_refresh_seconds", 1800)),
+        strip_wikilinks=bool(g.get("strip_wikilinks", False)),
         folders=tuple(folders),
         secrets=Secrets(ntfy_token=token, vacation_ical_url=ical_url),
     )

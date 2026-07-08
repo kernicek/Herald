@@ -43,7 +43,7 @@ class Engine:
 
         # 1) Scan files, expand occurrences in the window, route each.
         for folder in self.cfg.folders:
-            for stamp in parsing.scan_folder(folder):
+            for stamp in parsing.scan_folder(folder, self.cfg.strip_wikilinks):
                 occs = recurrence.expand(stamp, folder.default_time, folder,
                                          self.cfg.tz, win_start, win_end)
                 for occ in occs:
