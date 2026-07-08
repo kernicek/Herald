@@ -1,5 +1,7 @@
 # Herald
 
+Herald is a simple self-hostable notification system for [Logseq](https://logseq.com) using [ntfy](https://ntfy.sh) and [Syncthing](https://syncthing.net/).
+
 Exact-time mobile push notifications for [Logseq](https://logseq.com) tasks with
 `SCHEDULED:`/`DEADLINE:` timestamps. A Python daemon scans the Syncthing-synced
 Markdown on a NAS and pushes to a self-hosted [ntfy](https://ntfy.sh) server;
